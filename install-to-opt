@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Install d1 into /opt/ops/d1 and run install from there.
+# Creates /opt/ops if needed, clones repo if /opt/ops/d1 is missing, then runs install in /opt/ops/d1.
+# Usage: ./install-to-opt [--no-launcher] [--no-watcher] [--no-cli]
+
+set -e
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+D1_OPT_ROOT="/opt/ops"
+D1_OPT_REPO="/opt/ops/d1"
+REPO_URL="${D1_REPO_URL:-https://github.com/zerwiz/d1.git}"
+
+# Resolve repo URL from current git if we're inside a clone
+if [ -d "$ROOT/.git" ]; then
+  ORIGIN="$(git -C "$ROOT" remote get-url origin 2>/dev/null)" || true
+  [ -n "$ORIGIN" ] && REPO_URL="$ORIGIN"
+fi
+
+echo "Target: $D1_OPT_REPO"
+echo ""
+
+# Ensure /opt/ops exists and is writable by current user
+if [ ! -d "$D1_OPT_ROOT" ]; then
+  echo "Creating $D1_OPT_ROOT (may prompt for sudo)."
+  sudo mkdir -p "$D1_OPT_ROOT"
+  sudo chown "$USER:$USER" "$D1_OPT_ROOT"
+fi
+
+# Clone or update
+if [ ! -d "$D1_OPT_REPO" ]; then
+  echo "Cloning into $D1_OPT_REPO ..."
+  git clone "$REPO_URL" "$D1_OPT_REPO"
+else
+  echo "Existing clone at $D1_OPT_REPO; pulling latest then installing."
+  git -C "$D1_OPT_REPO" pull --rebase 2>/dev/null || git -C "$D1_OPT_REPO" pull 2>/dev/null || true
+fi
+
+echo ""
+cd "$D1_OPT_REPO"
+exec ./install "$@"

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Single update entry point. Run from repo root: ./update
+# Pulls from GitHub, rebuilds, and refreshes launcher, watcher unit, and d1 CLI.
+set -e
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$ROOT/scripts/update.sh"

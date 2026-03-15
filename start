@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Start the d1 Planning Hub (Electron app). Run from repo root.
+# Starts in background so no terminal window stays open — user only sees the app icon.
 set -e
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$ROOT/systems/d1-chat-ui"
-exec npm start
+UI_DIR="$ROOT/systems/d1-chat-ui"
+cd "$UI_DIR"
+nohup npm start </dev/null >/dev/null 2>&1 &
+disown -h 2>/dev/null || true

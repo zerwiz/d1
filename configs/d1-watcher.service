@@ -4,8 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-# %h = user home; adjust path if d1 is not at ~/CodeP/d1
-ExecStart=%h/CodeP/d1/scripts/watch.sh
+# Installed by scripts/install-watcher.sh with real path substituted
+ExecStart=@D1_PROJECT_ROOT@/scripts/watch.sh
+WorkingDirectory=@D1_PROJECT_ROOT@
 Restart=always
 RestartSec=3
 

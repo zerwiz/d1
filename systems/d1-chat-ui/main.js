@@ -1,23 +1,36 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const http = require('http');
 
 const PROJECT_ROOT = path.join(__dirname, '..', '..');
 const RAG_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'rag.sh');
 const HISTORY_FILE = path.join(PROJECT_ROOT, 'data', 'chat_history.json');
 const DATA_DIR = path.join(PROJECT_ROOT, 'data');
+const WATCHER_DIRS_FILE = path.join(PROJECT_ROOT, 'configs', 'watcher-dirs.txt');
+
+// So the taskbar/dock uses our icon and matches the desktop entry (StartupWMClass)
+app.setName('d1-planning-hub');
 
 function createWindow() {
+  const iconPath = path.join(__dirname, 'icon.png');
+  const iconImage = fs.existsSync(iconPath)
+    ? nativeImage.createFromPath(iconPath)
+    : null;
   const win = new BrowserWindow({
     width: 1000,
     height: 700,
+    icon: iconImage || iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
+  if (iconImage && process.platform === 'linux') {
+    win.setIcon(iconImage);
+  }
   win.loadFile('index.html');
 }
 
@@ -27,11 +40,57 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-ipcMain.handle('chat:send', async (_event, query) => {
+const LLM_URL = process.env.D1_LLM_URL || 'http://localhost:8080';
+
+function checkLLM() {
+  return new Promise((resolve) => {
+    const url = new URL(LLM_URL);
+    const req = http.request({
+      hostname: url.hostname,
+      port: url.port || 80,
+      path: url.pathname || '/',
+      method: 'GET',
+      timeout: 3000,
+    }, (res) => { resolve(true); });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+    req.end();
+  });
+}
+
+ipcMain.handle('llm:check', async () => {
+  const ok = await checkLLM();
+  return { ok };
+});
+
+ipcMain.handle('chat:send', async (_event, query, pinnedFileNames) => {
+  const env = { ...process.env, D1_PROJECT_ROOT: PROJECT_ROOT };
+  if (Array.isArray(pinnedFileNames) && pinnedFileNames.length > 0) {
+    const pinned = [];
+    for (const name of pinnedFileNames) {
+      try {
+        let filePath;
+        let content;
+        if (path.isAbsolute(name) && fs.existsSync(name) && fs.statSync(name).isFile()) {
+          filePath = name;
+          content = fs.readFileSync(name, 'utf-8');
+        } else {
+          filePath = path.join(DATA_DIR, path.basename(name));
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            content = fs.readFileSync(filePath, 'utf-8');
+          }
+        }
+        if (content != null) pinned.push({ path: filePath, content });
+      } catch (_) {}
+    }
+    if (pinned.length > 0) {
+      env.D1_PINNED_JSON = JSON.stringify(pinned);
+    }
+  }
   return new Promise((resolve) => {
     const child = spawn('bash', [RAG_SCRIPT, 'chat', query], {
       cwd: PROJECT_ROOT,
-      env: { ...process.env, D1_PROJECT_ROOT: PROJECT_ROOT },
+      env,
     });
     let stdout = '';
     let stderr = '';
@@ -41,6 +100,7 @@ ipcMain.handle('chat:send', async (_event, query) => {
       const raw = stdout.trim() || stderr.trim() || (code !== 0 ? stderr.trim() || `Exit code ${code}` : '(no output)');
       const paths = [];
       let response = raw;
+      const llmOffline = /Connection failed|ECONNREFUSED|ETIMEDOUT|fetch failed/i.test(raw) || code !== 0;
       if (raw.includes('D1_PATHS_START') && raw.includes('D1_PATHS_END')) {
         const endMarker = 'D1_PATHS_END';
         const idx = raw.indexOf(endMarker);
@@ -63,10 +123,10 @@ ipcMain.handle('chat:send', async (_event, query) => {
         });
         response = after || '(no output)';
       }
-      resolve({ response, paths });
+      resolve({ response, paths, llmOffline: !!llmOffline });
     });
     child.on('error', (err) => {
-      resolve({ response: `Error: ${err.message}`, paths: [] });
+      resolve({ response: `Error: ${err.message}`, paths: [], llmOffline: true });
     });
   });
 });
@@ -210,6 +270,47 @@ ipcMain.handle('index:rebuild', async (_event, scanDirs, excludeDirs) => {
     });
     child.on('error', (err) => resolve(`Error: ${err.message}`));
   });
+});
+
+ipcMain.handle('watcher:writeDirs', async (_event, scanDirs) => {
+  try {
+    const dirs = Array.isArray(scanDirs) ? scanDirs : [DATA_DIR];
+    const toWrite = [DATA_DIR, ...dirs.filter((d) => d && d !== DATA_DIR)];
+    const uniq = [...new Set(toWrite)];
+    fs.mkdirSync(path.dirname(WATCHER_DIRS_FILE), { recursive: true });
+    fs.writeFileSync(WATCHER_DIRS_FILE, uniq.join('\n') + '\n', 'utf-8');
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('watcher:writeDirsIfMissing', async (_event, scanDirs) => {
+  try {
+    if (fs.existsSync(WATCHER_DIRS_FILE)) return { ok: true, skipped: true };
+    const dirs = Array.isArray(scanDirs) ? scanDirs : [DATA_DIR];
+    const toWrite = [DATA_DIR, ...dirs.filter((d) => d && d !== DATA_DIR)];
+    const uniq = [...new Set(toWrite)];
+    fs.mkdirSync(path.dirname(WATCHER_DIRS_FILE), { recursive: true });
+    fs.writeFileSync(WATCHER_DIRS_FILE, uniq.join('\n') + '\n', 'utf-8');
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('files:readByPath', async (_event, fullPath) => {
+  if (!fullPath || typeof fullPath !== 'string') return { ok: false, error: 'Invalid path' };
+  const resolved = path.resolve(fullPath);
+  try {
+    if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+      return { ok: false, error: 'Not a file or not found' };
+    }
+    const content = fs.readFileSync(resolved, 'utf-8');
+    return { ok: true, content };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 });
 
 ipcMain.handle('files:read', async (_event, filename) => {

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Single install entry point. Run from repo root: ./install
+# Installs everything: UI, Rust indexer, launcher, watcher unit, d1 CLI.
+# Options: --no-launcher, --no-watcher, --no-cli to skip parts.
+# Use ./install --opt to install into /opt/ops/d1 (clone there and run install).
+set -e
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ "$1" = "--opt" ]; then
+  shift
+  exec "$ROOT/install-to-opt" "$@"
+fi
+exec "$ROOT/scripts/install.sh" "$@"

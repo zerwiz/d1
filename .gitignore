@@ -14,6 +14,9 @@ __pycache__/
 # Generated index (rebuild with ./scripts/rag.sh build)
 systems/rag/
 
+# Watcher config (paths per user)
+configs/watcher-dirs.txt
+
 # Environment and secrets
 .env
 .env.local

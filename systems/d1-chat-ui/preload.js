@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
-  sendChat: (query) => ipcRenderer.invoke('chat:send', query),
+  sendChat: (query, pinnedFileNames) => ipcRenderer.invoke('chat:send', query, pinnedFileNames),
   clearChatHistory: () => ipcRenderer.invoke('chat:clearHistory'),
   clearChat: () => ipcRenderer.invoke('chat:clearHistory'),
   listFiles: () => ipcRenderer.invoke('files:list'),
@@ -11,5 +11,9 @@ contextBridge.exposeInMainWorld('api', {
   addFolders: () => ipcRenderer.invoke('folders:add'),
   addExcludes: () => ipcRenderer.invoke('folders:exclude'),
   rebuildIndex: (scanDirs, excludeDirs) => ipcRenderer.invoke('index:rebuild', scanDirs, excludeDirs),
+  writeWatcherDirs: (scanDirs) => ipcRenderer.invoke('watcher:writeDirs', scanDirs),
+  writeWatcherDirsIfMissing: (scanDirs) => ipcRenderer.invoke('watcher:writeDirsIfMissing', scanDirs),
+  readFileByPath: (fullPath) => ipcRenderer.invoke('files:readByPath', fullPath),
   exportSession: (chatHtml) => ipcRenderer.invoke('session:export', chatHtml),
+  checkLLM: () => ipcRenderer.invoke('llm:check'),
 });

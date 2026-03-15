@@ -16,11 +16,14 @@ const contextContent = document.getElementById('context-content');
 const tokenBar = document.getElementById('token-bar');
 const tokenStats = document.getElementById('token-stats');
 const exportBtn = document.getElementById('export-btn');
+const llmBanner = document.getElementById('llm-offline-banner');
+const pinnedList = document.getElementById('pinned-list');
 
 const CONTEXT_WINDOW_SIZE = 8192;
 
 let externalFolders = JSON.parse(localStorage.getItem('d1-folders') || '[]');
 let excludedFolders = JSON.parse(localStorage.getItem('d1-excludes') || '[]');
+let pinnedFiles = JSON.parse(localStorage.getItem('d1-pinned') || '[]');
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -50,6 +53,33 @@ function renderExcludes() {
   localStorage.setItem('d1-excludes', JSON.stringify(excludedFolders));
 }
 
+function renderPinned() {
+  pinnedList.innerHTML = '';
+  pinnedFiles.forEach((name) => {
+    const li = document.createElement('li');
+    const span = document.createElement('span');
+    const displayName = name.includes('/') || name.includes('\\') ? name.split(/[/\\]/).pop() : name;
+    span.textContent = displayName;
+    span.title = name;
+    span.style.overflow = 'hidden';
+    span.style.textOverflow = 'ellipsis';
+    span.style.whiteSpace = 'nowrap';
+    li.appendChild(span);
+    const btn = document.createElement('button');
+    btn.className = 'unpin-btn';
+    btn.textContent = 'Unpin';
+    btn.addEventListener('click', () => {
+      pinnedFiles = pinnedFiles.filter((n) => n !== name);
+      localStorage.setItem('d1-pinned', JSON.stringify(pinnedFiles));
+      renderPinned();
+      loadFiles();
+    });
+    li.appendChild(btn);
+    pinnedList.appendChild(li);
+  });
+  localStorage.setItem('d1-pinned', JSON.stringify(pinnedFiles));
+}
+
 async function loadFiles() {
   const entries = await window.api.listFiles();
   fileList.innerHTML = '';
@@ -71,6 +101,21 @@ async function loadFiles() {
       nameSpan.className = 'file-name';
       nameSpan.textContent = entry.name;
       li.appendChild(nameSpan);
+      const pinBtn = document.createElement('button');
+      pinBtn.className = 'pin-btn' + (pinnedFiles.includes(entry.name) ? ' pinned' : '');
+      pinBtn.textContent = pinnedFiles.includes(entry.name) ? 'Pinned' : 'Pin';
+      pinBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (pinnedFiles.includes(entry.name)) {
+          pinnedFiles = pinnedFiles.filter((n) => n !== entry.name);
+        } else {
+          pinnedFiles = [...pinnedFiles, entry.name];
+        }
+        localStorage.setItem('d1-pinned', JSON.stringify(pinnedFiles));
+        renderPinned();
+        loadFiles();
+      });
+      li.appendChild(pinBtn);
       const viewBtn = document.createElement('button');
       viewBtn.className = 'view-btn';
       viewBtn.textContent = 'View';
@@ -117,6 +162,7 @@ addFolderBtn.addEventListener('click', async () => {
   if (newFolders && newFolders.length > 0) {
     externalFolders = [...new Set([...externalFolders, ...newFolders])];
     renderFolders();
+    await window.api.writeWatcherDirs(externalFolders);
     const status = await window.api.rebuildIndex(externalFolders, excludedFolders);
     chatDiv.innerHTML += `<b>Index:</b> ${escapeHtml(status)}\n\n`;
     chatDiv.scrollTop = chatDiv.scrollHeight;
@@ -134,6 +180,7 @@ addExcludeBtn.addEventListener('click', async () => {
 rebuildBtn.addEventListener('click', async () => {
   rebuildBtn.disabled = true;
   rebuildBtn.textContent = 'Indexing…';
+  await window.api.writeWatcherDirs(externalFolders);
   const status = await window.api.rebuildIndex(externalFolders, excludedFolders);
   rebuildBtn.disabled = false;
   rebuildBtn.textContent = 'Rebuild index';
@@ -191,9 +238,15 @@ sendBtn.addEventListener('click', async () => {
   sendBtn.disabled = true;
 
   try {
-    const result = await window.api.sendChat(text);
+    const result = await window.api.sendChat(text, pinnedFiles);
     let response = typeof result === 'object' && result !== null && 'response' in result ? result.response : String(result);
     const paths = typeof result === 'object' && result !== null && Array.isArray(result.paths) ? result.paths : [];
+    const llmOffline = typeof result === 'object' && result !== null && result.llmOffline === true;
+    if (llmOffline) {
+      llmBanner.classList.add('show');
+    } else {
+      llmBanner.classList.remove('show');
+    }
 
     let hasTokenMeta = false;
     if (response.includes('D1_META_START') && response.includes('D1_META_END')) {
@@ -216,7 +269,21 @@ sendBtn.addEventListener('click', async () => {
     if (paths.length > 0 || hasTokenMeta) {
       contextViewer.style.display = 'block';
       if (paths.length > 0) {
-        contextContent.innerHTML = paths.map((p) => `<div class="context-path">\u{1F4C4} ${escapeHtml(p)}</div>`).join('');
+        contextContent.innerHTML = paths.map((p) => {
+          const isPinned = pinnedFiles.includes(p);
+          return `<div class="context-path"><span title="${escapeHtml(p)}">\u{1F4C4} ${escapeHtml(p.split(/[/\\]/).pop() || p)}</span> <button type="button" class="context-pin-btn" data-path="${escapeHtml(p)}" title="Pin to context" ${isPinned ? ' disabled' : ''}>${isPinned ? 'Pinned' : 'Pin'}</button></div>`;
+        }).join('');
+        contextContent.querySelectorAll('.context-pin-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const pathVal = btn.getAttribute('data-path');
+            if (!pathVal || pinnedFiles.includes(pathVal)) return;
+            pinnedFiles = [...pinnedFiles, pathVal];
+            localStorage.setItem('d1-pinned', JSON.stringify(pinnedFiles));
+            renderPinned();
+            btn.textContent = 'Pinned';
+            btn.disabled = true;
+          });
+        });
       }
     }
     if (paths.length === 0 && !hasTokenMeta) {
@@ -227,6 +294,7 @@ sendBtn.addEventListener('click', async () => {
     chatDiv.innerHTML += `<b>AI:</b> ${escapeHtml(response)}\n\n`;
   } catch (e) {
     chatDiv.innerHTML += `<b>Error:</b> ${escapeHtml(String(e))}\n\n`;
+    llmBanner.classList.add('show');
   }
 
   sendBtn.disabled = false;
@@ -266,6 +334,18 @@ sidebar.addEventListener('drop', async (e) => {
   await loadFiles();
 });
 
+document.querySelector('#llm-offline-banner .banner-dismiss').addEventListener('click', () => {
+  llmBanner.classList.remove('show');
+});
+
+(async () => {
+  const r = await window.api.checkLLM();
+  if (!r || !r.ok) llmBanner.classList.add('show');
+})();
+
+if (externalFolders.length > 0) window.api.writeWatcherDirsIfMissing(externalFolders);
+
 renderFolders();
 renderExcludes();
+renderPinned();
 loadFiles();

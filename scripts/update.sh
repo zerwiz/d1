@@ -7,10 +7,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 UI_DIR="$PROJECT_ROOT/systems/d1-chat-ui"
 RUST_DIR="$PROJECT_ROOT/systems/rust_indexer"
+. "$SCRIPT_DIR/banner.sh" 2>/dev/null || true
 
 cd "$PROJECT_ROOT"
-
-echo "=== d1 Planning Hub — Update ==="
+d1_banner 2>/dev/null || true
 echo "Project root: $PROJECT_ROOT"
 echo ""
 
@@ -43,6 +43,13 @@ cd "$RUST_DIR"
 cargo build --release
 cd "$PROJECT_ROOT"
 
+# Refresh launcher, systemd unit, and CLI so they point to updated code
+echo "--- Refreshing launcher, watcher unit, and CLI ---"
+"$SCRIPT_DIR/install-d1.sh" 2>/dev/null || true
+"$SCRIPT_DIR/install-watcher.sh" 2>/dev/null || true
+"$SCRIPT_DIR/install-d1-cli.sh" 2>/dev/null || true
+
 echo ""
-echo "Update complete. Rebuild index if needed: ./scripts/rag.sh build"
-echo "If you use the desktop launcher, re-run: ./scripts/install-d1.sh"
+echo "Update complete. Launcher, watcher unit, and d1 CLI have been refreshed."
+echo "Rebuild index if needed: d1 build   or   ./scripts/rag.sh build"
+d1_pause_at_end 2>/dev/null || true

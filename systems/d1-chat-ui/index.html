@@ -240,6 +240,26 @@
     #context-viewer .context-viewer-close:hover { color: #7eb8da; }
     #context-content { white-space: pre-wrap; word-break: break-all; }
     #context-content .context-path { margin-bottom: 4px; }
+    #llm-offline-banner {
+      display: none;
+      padding: 10px 14px;
+      background: #5a2d2d;
+      color: #f48771;
+      font-size: 13px;
+      border-bottom: 1px solid #7a3d3d;
+    }
+    #llm-offline-banner.show { display: block; }
+    #llm-offline-banner .banner-dismiss { float: right; background: none; border: none; color: #f48771; cursor: pointer; font-size: 18px; }
+    #pinned-list { list-style: none; padding: 0; margin: 0 0 8px 0; font-size: 12px; color: #9cdcfe; max-height: 60px; overflow-y: auto; }
+    #pinned-list li { display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 4px 0; }
+    #pinned-list .unpin-btn { padding: 2px 6px; font-size: 11px; background: #444; color: #ccc; border: none; border-radius: 3px; cursor: pointer; }
+    .file-list .pin-btn { padding: 4px 8px; font-size: 11px; background: #444; color: #9cdcfe; border: none; border-radius: 3px; cursor: pointer; }
+    .file-list .pin-btn.pinned { background: #0e639c; color: #fff; }
+    #context-content .context-path { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    #context-content .context-path span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    #context-content .context-pin-btn { flex-shrink: 0; padding: 2px 8px; font-size: 11px; background: #444; color: #9cdcfe; border: none; border-radius: 3px; cursor: pointer; }
+    #context-content .context-pin-btn:hover:not(:disabled) { background: #555; }
+    #context-content .context-pin-btn:disabled { opacity: 0.8; cursor: default; color: #6a9fb5; }
   </style>
 </head>
 <body>
@@ -253,6 +273,9 @@
     <button id="add-exclude-btn" class="sidebar-btn sidebar-btn-secondary">Add exclusion</button>
     <button id="rebuild-btn" class="sidebar-btn sidebar-btn-success">Rebuild index</button>
     <hr class="sidebar-hr" />
+    <h3>Pinned to context</h3>
+    <ul id="pinned-list"></ul>
+    <hr class="sidebar-hr" />
     <h3>Data files</h3>
     <input type="text" id="file-search" placeholder="Search files..." />
     <ul id="file-list"></ul>
@@ -261,6 +284,10 @@
     <button id="export-btn" class="sidebar-btn sidebar-btn-export">Export planning doc</button>
   </div>
   <div id="main-area">
+    <div id="llm-offline-banner" role="alert">
+      <span>LLM unavailable — ensure llamacpp-droid is running (e.g. port 8080).</span>
+      <button type="button" class="banner-dismiss" title="Dismiss">&#215;</button>
+    </div>
     <div id="chat"></div>
     <div id="context-viewer">
       <div class="context-viewer-header">

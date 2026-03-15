@@ -21,6 +21,20 @@ d1 is a high-performance, local-first **Retrieval-Augmented Generation (RAG)** s
 
 ## Setup Instructions
 
+**From repo root — one command:**
+
+```bash
+./install
+```
+
+This installs the UI, Rust indexer, desktop launcher, systemd watcher unit, and d1 CLI. To install into **/opt/ops/d1** (create /opt/ops, clone there, then install):
+
+```bash
+./install --opt
+```
+
+To skip parts: `./install --no-launcher`, `./install --no-watcher`, or `./install --no-cli`.
+
 ### 1. Prerequisites
 
 Ensure you have the following installed:
@@ -33,41 +47,42 @@ Ensure you have the following installed:
 
 ### 2. Install Dependencies
 
-**Option A — one-shot install (recommended):**
+**Option A — from root (recommended):**
 
 ```bash
-./scripts/install.sh
+./install
 ```
 
-To also add the desktop launcher to your app menu:
+Installs UI, Rust indexer, launcher, watcher unit, and d1 CLI. Use `./install --no-launcher`, `--no-watcher`, or `--no-cli` to skip parts.
+
+**Option B — manual:** `cd systems/d1-chat-ui && npm install` then `cd ../rust_indexer && cargo build --release`; run `./install` for launcher/watcher/CLI.
+
+### 3. Updating (pull and refresh everything)
 
 ```bash
-./scripts/install.sh --launcher
+./update
+# or: d1 update
 ```
 
-**Option B — manual steps:**
+Pulls from GitHub, rebuilds, and refreshes launcher, watcher unit, and d1 CLI.
 
-```bash
-cd systems/d1-chat-ui && npm install
-cd ../rust_indexer && cargo build --release
-./scripts/install-d1.sh   # optional: desktop launcher
-```
+## Running the app
 
-### 3. Updating (pull from GitHub and rebuild)
+**From the application menu:** After `./install`, open **Show Applications** (or your app grid), search for **d1 Planning Hub**, and click to start. The launcher is installed to `~/.local/share/applications/`.
 
-```bash
-./scripts/update.sh
-```
-
-This runs `git pull origin main`, then `npm install` and `cargo build --release`. Re-run `./scripts/install-d1.sh` if you use the desktop launcher.
-
-## Running the app (from repo root)
+**From anywhere (terminal):** After `./install` (which installs the d1 CLI), run:
 
 | Command | Description |
 |--------|--------------|
-| `./start` | Start the d1 Planning Hub (Electron app). |
-| `./stop` | Stop the running Electron app. |
-| `./fine` | Show status: app, watcher, index. |
+| `d1 start` | Start the Planning Hub (Electron app). |
+| `d1 stop` | Stop the running app. |
+| `d1 status` | Show status: app, watcher, index. |
+| `d1 build` | Rebuild the RAG index. |
+| `d1 chat "question"` | Send a question from the CLI (RAG + LLM). |
+| `d1 update` | Pull from GitHub and rebuild. |
+| `d1 help` | List all commands. |
+
+**From repo root:** `./start`, `./stop`, `./fine`, `./install`, `./update`.
 
 ## Usage
 
@@ -87,16 +102,20 @@ This runs `git pull origin main`, then `npm install` and `cargo build --release`
 
 * **Clear History**: Resets the AI's conversation memory.
 * **Exclusions**: Add sensitive folders to the exclusion list to keep them out of the index.
+* **Pinned to context**: Use **Pin** on a data file to always include it in the AI context for every query; **Unpin** to remove.
+* **LLM offline**: If llamacpp-droid is not running, a red banner appears; fix the connection and send again or dismiss the banner.
 
 ## Systemd Integration
 
-To keep the index updated automatically in the background:
+To keep the index updated automatically in the background (watches `data/` and any external folders you added in the UI):
 
 ```bash
-# Copy the unit file if needed (see configs/d1-watcher.service)
+./scripts/install-watcher.sh
 systemctl --user enable --now d1-watcher.service
 ```
 
+Or use `./scripts/install.sh --watcher` during first-time install.
+
 ---
 
-**Docs:** [docs/PLANNING.md](docs/PLANNING.md) · [docs/ROADMAP.md](docs/ROADMAP.md) · **[docs/TODO.md](docs/TODO.md)** (what’s left to do for full operation)
+**Docs:** **[docs/SYSTEM_OVERVIEW.md](docs/SYSTEM_OVERVIEW.md)** (all capabilities) · [docs/PLANNING.md](docs/PLANNING.md) · [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/TODO.md](docs/TODO.md)

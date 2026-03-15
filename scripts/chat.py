@@ -31,6 +31,20 @@ def main():
             history = []
 
     context = ""
+
+    # Pinned documents (always included in context)
+    pinned_json = os.environ.get("D1_PINNED_JSON")
+    if pinned_json:
+        try:
+            pinned = json.loads(pinned_json)
+            for item in (pinned if isinstance(pinned, list) else []):
+                p = item.get("path", "")
+                c = item.get("content", "")
+                if p or c:
+                    context += f"--- Pinned: {p} ---\n{c}\n\n"
+        except (json.JSONDecodeError, TypeError, KeyError):
+            pass
+
     for raw in raw_chunks:
         try:
             chunk_data = json.loads(raw)

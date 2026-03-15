@@ -11,6 +11,7 @@ Purpose, structure, and usage of project documentation.
 
 | File | Purpose |
 |------|--------|
+| [SYSTEM_OVERVIEW.md](./SYSTEM_OVERVIEW.md) | **System overview and all capabilities** — architecture, indexing, chat, UI, watcher, install, config, commands. |
 | [PLANNING.md](./PLANNING.md) | Central high-level system planning; AI engine (llamacpp-droid), systems list, timelines. |
 | [ROADMAP.md](./ROADMAP.md) | Planning Hub architecture, Phase 1–4 roadmap, component overview. |
 | [TODO.md](./TODO.md) | What’s done and what’s left for the project to work fully; actionable remaining tasks. |

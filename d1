@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# d1 CLI — run from anywhere when installed to PATH (e.g. ~/.local/bin/d1).
+# Resolves repo root via realpath so symlinks work.
+set -e
+D1_SCRIPT="${BASH_SOURCE[0]:-$0}"
+D1_SCRIPT="$(readlink -f "$D1_SCRIPT" 2>/dev/null || realpath "$D1_SCRIPT" 2>/dev/null || echo "$D1_SCRIPT")"
+D1_ROOT="$(cd "$(dirname "$D1_SCRIPT")" && pwd)"
+export D1_PROJECT_ROOT="$D1_ROOT"
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+  start)
+    # Launch via desktop entry when present so no terminal is used; else background start
+    DESKTOP="${XDG_DATA_HOME:-$HOME/.local/share}/applications/d1-planning-hub.desktop"
+    if [ -f "$DESKTOP" ] && (command -v gtk-launch >/dev/null 2>&1 || command -v xdg-open >/dev/null 2>&1); then
+      if command -v gtk-launch >/dev/null 2>&1; then
+        gtk-launch d1-planning-hub 2>/dev/null
+      else
+        xdg-open "$DESKTOP" 2>/dev/null
+      fi
+    else
+      "$D1_ROOT/start"
+    fi
+    ;;
+  stop)
+    exec "$D1_ROOT/stop"
+    ;;
+  status|fine)
+    exec "$D1_ROOT/fine"
+    ;;
+  build)
+    exec "$D1_ROOT/scripts/rag.sh" build
+    ;;
+  query)
+    exec "$D1_ROOT/scripts/rag.sh" query "$@"
+    ;;
+  chat)
+    exec "$D1_ROOT/scripts/rag.sh" chat "$@"
+    ;;
+  update)
+    exec "$D1_ROOT/scripts/update.sh"
+    ;;
+  install)
+    exec "$D1_ROOT/scripts/install.sh" "$@"
+    ;;
+  watcher)
+    exec "$D1_ROOT/scripts/watch.sh"
+    ;;
+  help|--help|-h)
+    echo "d1 Planning Hub — CLI"
+    echo ""
+    echo "Usage: d1 <command> [args...]"
+    echo ""
+    echo "Commands:"
+    echo "  start         Start the Electron app (Planning Hub)"
+    echo "  stop          Stop the running app"
+    echo "  status        Show status (app, watcher, index)"
+    echo "  build         Rebuild the RAG index"
+    echo "  query <term>  Search index; print matching chunks (JSON)"
+    echo "  chat <query>  Send a question (RAG + LLM) from CLI"
+    echo "  update        git pull + npm install + cargo build"
+    echo "  install       First-time install (options: --launcher, --watcher)"
+    echo "  watcher       Run file watcher in foreground"
+    echo "  help          Show this help"
+    echo ""
+    echo "From repo root: ./install (full install), ./update (pull + refresh)."
+    ;;
+  *)
+    echo "d1: unknown command '$cmd'. Use 'd1 help'." >&2
+    exit 1
+    ;;
+esac
