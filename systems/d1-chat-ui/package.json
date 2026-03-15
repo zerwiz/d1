@@ -1,0 +1,15 @@
+{
+  "name": "d1-chat-ui",
+  "version": "0.1.0",
+  "description": "d1 Planning Hub — chat with your docs via RAG and llamacpp-droid",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^28.0.0"
+  },
+  "dependencies": {
+    "marked": "^17.0.4"
+  }
+}

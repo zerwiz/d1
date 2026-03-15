@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Rust
+target/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.so
+
+# Generated index (rebuild with ./scripts/rag.sh build)
+systems/rag/
+
+# Environment and secrets
+.env
+.env.local
+*.local
+
+# Logs and OS
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

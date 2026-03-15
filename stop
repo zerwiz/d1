@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Stop the d1 Planning Hub Electron app. Run from repo root.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PATTERN="$ROOT/systems/d1-chat-ui"
+count=0
+while read -r pid; do
+  kill "$pid" 2>/dev/null && count=$((count + 1))
+done < <(pgrep -f "$PATTERN" 2>/dev/null || true)
+if [ "$count" -gt 0 ]; then
+  echo "Stopped d1 Planning Hub ($count process(es))."
+else
+  echo "No d1 Planning Hub process found."
+fi

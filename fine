@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Status check for d1: app, watcher, index. Run from repo root.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PATTERN="$ROOT/systems/d1-chat-ui"
+INDEX_DIR="${RAG_INDEX_DIR:-$ROOT/systems/rag/tantivy_index}"
+
+echo "=== d1 status ==="
+echo ""
+
+# Electron app
+if pgrep -f "$PATTERN" >/dev/null 2>&1; then
+  echo "  App:    running"
+else
+  echo "  App:    not running (use ./start to launch)"
+fi
+
+# Watcher (watch.sh or inotify)
+if pgrep -f "$ROOT/scripts/watch.sh" >/dev/null 2>&1; then
+  echo "  Watcher: running"
+else
+  echo "  Watcher: not running (optional: ./scripts/watch.sh or systemd d1-watcher)"
+fi
+
+# Index
+if [ -d "$INDEX_DIR" ] && ls "$INDEX_DIR" 2>/dev/null | grep -q .; then
+  echo "  Index:  present ($INDEX_DIR)"
+else
+  echo "  Index:  not built (run ./scripts/rag.sh build)"
+fi
+
+echo ""

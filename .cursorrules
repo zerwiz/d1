@@ -1,0 +1,4 @@
+Read docs/PLANNING.md and docs/RAG_PLANNING.md before suggesting architecture changes.
+The project name is d1.
+The AI engine is llamacpp-droid (llama.cpp server run via https://github.com/zerwiz/llamacpp-droid). Do not add a separate LLM stack.
+Do not suggest Elasticsearch or heavy indexing stacks.

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Start the d1 Planning Hub (Electron app). Run from repo root.
+set -e
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT/systems/d1-chat-ui"
+exec npm start
